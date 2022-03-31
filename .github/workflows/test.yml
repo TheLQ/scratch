@@ -1,0 +1,60 @@
+#
+# Copyright (C) 2010-2014 Leon Blakey <lord.quackstar at gmail.com>
+#
+# This file is part of PircBotX.
+#
+# PircBotX is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# PircBotX is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# PircBotX. If not, see <http://www.gnu.org/licenses/>.
+#
+
+name: Java CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup lint - reviewdog
+        uses: reviewdog/action-setup@v1
+        # with:
+        #   reviewdog_version: latest # Optional. [latest,nightly,v.X.Y.Z]
+
+      - name: Setup lint - scarfco
+        run: mkdir bin && curl -sfL https://raw.githubusercontent.com/mallowlabs/scarfco/main/install.sh | sh -s && ls -l bin && pwd
+
+      - name: Lint - reviewdog spotbugs
+        run: ls -l bin && ls -l bin/scanrfco && cat target/spotbugsXml.xml | bin/scanrfco | reviewdog -name=spotbugs -f=checkstyle $REVIEWDOG_OPTS
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.reviewdog_token }}
+        continue-on-error: true
+
+      - name: Lint - reviewdog pmd
+        run: bin/scanrfco target/pmd.xml | reviewdog -name=pmd -f=checkstyle $REVIEWDOG_OPTS
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.reviewdog_token }}
+        continue-on-error: true
+
+      - name: Lint - reviewdog Github Action itself
+        uses: reviewdog/action-actionlint@v1
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.reviewdog_token }}
+        continue-on-error: true
+
+#- test "$TRAVIS_BRANCH" = "master" &&  test "$TRAVIS_PULL_REQUEST" = "false" && mvn source:jar deploy --settings .travis/maven-settings.xml -Dmaven.test.skip=true
+#- test "$TRAVIS_TAG" != "" && mvn source:jar deploy --settings .travis/maven-settings-release.xml -Dmaven.test.skip=true
+
